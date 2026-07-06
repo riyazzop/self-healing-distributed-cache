@@ -27,10 +27,10 @@ app.post('/put', async (req: Request, res: Response) => {
 app.get('/get/:key', async (req: Request, res: Response) => {
     const key = String(req.params.key);
     if (!cache.has(key)) {
-        return res.status(404).json({ error: `Key "${key}" not found in cache` });
+        return res.status(200).json({data:null, message: `Key "${key}" not found in cache` ,success:false});
     }
-    const value = cache.get(key);
-    return res.json({ key, value });
+    const entry = cache.get(key);
+    return res.json({data:{key, value: entry.value}, message:"Successfully returning ...",success:true});
 });
 
 //Get all key,value pairs
@@ -55,9 +55,9 @@ app.delete('/delete/:key', (req: Request, res: Response) => {
     const key = String(req.params.key);
     const deleted = cache.delete(key);
     if (!deleted) {
-        return res.status(404).json({ message: `Key : ${key} doesn't exist in cache` });
+        return res.status(200).json({ message: `Key : ${key} doesn't exist in cache`, success:false});
     }
-    return res.json({ message: `Key : {${key}} and its value deleted successfully from cache` });
+    return res.json({ message: `Key : {${key}} and its value deleted successfully from cache`,success:true });
 });
 
 //health

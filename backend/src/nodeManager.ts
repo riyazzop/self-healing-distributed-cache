@@ -12,7 +12,7 @@ const PORT = parseInt(process.env.MANAGER_PORT ?? "3000", 10);
 const app = express();
 app.use(express.json());
 
-// --- Routes ---
+
 app.get("/", (_req: Request, res: Response) => {
   res.json({ message: "Hello from Server" });
 });
@@ -24,7 +24,7 @@ app.get("/status", (_req: Request, res: Response) => {
 
 app.use("/", hashingMiddleware, nodeRouter);
 
-// --- Signal Handlers ---
+//  Signal Handlers 
 process.on("exit", () => {
   try {
     fs.unlinkSync("./active_nodes.json");
@@ -43,10 +43,11 @@ process.on("SIGTERM", () => {
   process.exit(0);
 });
 
-// --- Entrypoint ---
+// Entrypoint 
 if (process.argv[1].endsWith("nodeManager.ts")) {
   startAllNodes();
   app.listen(PORT, () => {
     console.log(`Node Manager is running on port ${PORT}`);
   });
 }
+

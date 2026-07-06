@@ -13,12 +13,12 @@ export const getReplicaNodePort = (port: string) => {
   
   let nodeNum = Number(port) - BASE_PORT;
   let nextNum = (nodeNum % TOTAL_NODES) + 1;
-  return BASE_PORT + nextNum;
+  return String(BASE_PORT + nextNum);
 };
 
 export const getPrimaryNodePort=(port: string) =>{
   let nodeNum = Number(port) - BASE_PORT;
   let prevNum = ((nodeNum - 2 + TOTAL_NODES) % TOTAL_NODES) + 1;
-  return BASE_PORT + prevNum;
+  return String(BASE_PORT + prevNum);
 }
 

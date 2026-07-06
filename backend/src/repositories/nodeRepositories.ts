@@ -6,5 +6,11 @@ export const setDataInCache=async(port:any,{key,value,type}:any)=>{
 }
 
 export const deleteDataInCache=async (port:any,key:string) => {
-    await axios.delete(`http://localhost:${port}/delete/${key}`)
+    const {data} = await axios.delete(`http://localhost:${port}/delete/${key}`)
+    return data
+}
+
+export const getDataFromNode=async(port:string,key:string)=>{
+    const {data} = await axios.get(`http://localhost:${port}/get/${key}`)
+    return data
 }

@@ -1,15 +1,14 @@
 import { Response } from "express"
-import {  HashedRequest } from "../middlewares/hashingMiddleware.js"
-import { nodes } from "../utils/nodeUtils.js"
+import { HashedRequest } from "../middlewares/hashingMiddleware.js"
 import { getReplicaNodePort } from "../utils/hash.js"
-import { deleteDataInCache, setDataInCache } from "../repositories/nodeRepositories.js"
+import { deleteDataInCache, getDataFromNode, setDataInCache } from "../repositories/nodeRepositories.js"
 import { delay } from "../utils/delay.js"
-import axios from "axios"
+
 
 
 export const setData = async (req:HashedRequest,res:Response)=>{
-    const nodeid =req.user?.nodeid
-    const nodePort=nodes.find(node=>node.nodeId===`NODE-0${nodeid}`)?.port as string
+    
+    const nodePort=req.user?.nodePort as string
     const {key,value} = req.body
     if(!key || ! value){
         return res.status(400).json({message:"(key,value) required to put data in cache"})
@@ -52,57 +51,83 @@ export const setData = async (req:HashedRequest,res:Response)=>{
 
 }
 
-export const deleteData=async (req:HashedRequest,res:Response) => {
-    const nodeid =req.user?.nodeid
-    const nodePort=nodes.find(node=>node.nodeId===`NODE-0${nodeid}`)?.port as string
+export const deleteData = async (req: HashedRequest, res: Response) => {
+
+    const nodePort = req.user?.nodePort as string;
     const key = String(req.params.key)
-    
-    if(!key){
-        return res.status(400).json({message:"Key is required to delete"})
-    }
+
     let primaryDeleted = false;
     let replicaDeleted = false;
-    //deleting from primary node
+
+    // Primary node
     try {
-        await deleteDataInCache(nodePort,key)
-        primaryDeleted = true
+        const data = await deleteDataInCache(nodePort, key)
+        
+        primaryDeleted = data?.success === true
     } catch (error) {
-        console.log("Deletion failed , retrying after 8s....");
+        console.log("Deletion failed on primary, retrying after 8s...");
         await delay(8)
         try {
-            await deleteDataInCache(nodePort,key)   
-            primaryDeleted=true         
+            const data = await deleteDataInCache(nodePort, key)
+            primaryDeleted = data?.success === true
         } catch (error) {
-            console.log("Deletion failed after retry....");
-            
+            console.log("Primary deletion failed after retry.");
         }
     }
-    //deleting from replica node
+
+    // Replica node 
     const replicaNodePort = getReplicaNodePort(nodePort)
     try {
-        await deleteDataInCache(replicaNodePort,key)
-        replicaDeleted = true
+        const data = await deleteDataInCache(replicaNodePort, key)
+        replicaDeleted = data?.success === true
     } catch (error) {
-        console.log("Deletion failed , retrying after 8s....");
+        console.log("Deletion failed on replica, retrying after 8s...");
         await delay(8)
         try {
-            await deleteDataInCache(replicaNodePort,key)            
-            replicaDeleted =true
+            const data = await deleteDataInCache(replicaNodePort, key)
+            replicaDeleted = data?.success === true
         } catch (error) {
-            console.log("Deletion failed after retry....");
+            console.log("Replica deletion failed after retry.");
         }
     }
-     if(!primaryDeleted && !replicaDeleted){
-        return res.status(404).json({message:`${key} not exists in cache`})
-     }
-    if(!primaryDeleted){
-        return res.status(500).json({
-            message:"Failed to delete on primary node ",
-            
-        })
-    }
-   
-    return res.status(200).json({message:"Deletion successfull"})
 
+    // Result
+    if (!primaryDeleted && !replicaDeleted) {
+        return res.status(404).json({ message: `Key "${key}" not found in cache` })
+    }
+    if (!primaryDeleted) {
+        return res.status(500).json({ message: "Deleted from replica but primary delete failed" })
+    }
+    return res.status(200).json({ message: "Deletion successful" })
+}
+
+
+export const getData = async (req: HashedRequest, res: Response) => {
+    const nodePort = req.user?.nodePort as string;
+    const key = String(req.params.key)
+
+    //  primary node
+    try {
+        const data = await getDataFromNode(nodePort, key)
+        if (!data.success) {
+            return res.status(404).json(data)
+        }
+        return res.status(200).json(data)
+    } catch (error) {
+        console.log("Data retrieval failed from primary node, retrying from replica...");
+    }
+
+    // replica node
+    const replicaNodePort = getReplicaNodePort(nodePort)
+    try {
+        const data = await getDataFromNode(replicaNodePort, key)
+        if (!data.success) {
+            return res.status(404).json(data)
+        }
+        return res.status(200).json(data)
+    } catch (error) {
+        console.log("Data retrieval failed from replica node too.");
+        return res.status(503).json({ message: "Both primary and replica nodes are unavailable" })
+    }
 }
 
