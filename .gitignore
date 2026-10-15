@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+out/
+target/
+*.class
+*.jar
+*.log
+active_nodes.json
+
+.vscode/
+.idea/
+*.iml
+
+.DS_Store
+Thumbs.db
